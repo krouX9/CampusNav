@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geofenced Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        h2 {
+            padding: 15px;
+            background-color: #007bff;
+            color: white;
+            margin: 0;
+        }
+        #map {
+            height: 80vh;
+            width: 95%;
+            margin: 10px auto;
+            border-radius: 10px;
+            box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        #popup {
+            position: fixed;
+            bottom: -100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #007bff;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-size: 18px;
+            transition: bottom 0.5s ease-in-out;
+        }
+        .show-popup {
+            bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h2>Geofenced Map</h2>
+    <div id="map"></div>
+    <div id="popup">You are at Queen Elizabeth</div>
+    <script>
+        let map = L.map('map').setView([17.734861, 83.338056], 14); // Default to Queen Elizabeth location
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+        
+        let geofenceCenter = [17.734861, 83.338056]; // Queen Elizabeth location
+        let geofenceRadius = 10; // 50 meters radius
+        let geofenceCircle = L.circle(geofenceCenter, {
+            color: 'red',
+            fillColor: '#f03',
+            fillOpacity: 0.2,
+            radius: geofenceRadius
+        }).addTo(map);
+        
+        function checkGeofence(position) {
+            let lat = position.coords.latitude;
+            let lng = position.coords.longitude;
+            let accuracy = position.coords.accuracy;
+            let distance = map.distance([lat, lng], geofenceCenter);
+            
+            map.setView([lat, lng], 14); // Update map to user's location
+            let marker = L.marker([lat, lng]).addTo(map).bindPopup(`You are here (Accuracy: ${accuracy.toFixed(1)}m)`).openPopup();
+            
+            if (distance <= geofenceRadius) {
+                document.getElementById("popup").classList.add("show-popup");
+            }
+        }
+        
+        function errorHandler(error) {
+            alert("Could not retrieve location. Please check your GPS settings.");
+            console.warn("Error obtaining location", error);
+        }
+        
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(checkGeofence, errorHandler, { 
+                enableHighAccuracy: true,
+                maximumAge: 0, 
+                timeout: 30000 // Increased timeout to 30 seconds
+            });
+        } else {
+            alert("Geolocation is not supported by your browser.");
+        }
+    </script>
+</body>
+</html>
