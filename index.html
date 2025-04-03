@@ -12,7 +12,7 @@
             text-align: center;
             margin: 0;
             padding: 0;
-            background-color: #f4f4f4;
+            background-color: #000000;
         }
         h2 {
             padding: 15px;
@@ -34,61 +34,200 @@
             transform: translateX(-50%);
             background: #007bff;
             color: white;
-            padding: 15px 20px;
+            padding: 15px 40px 15px 20px;
             border-radius: 10px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
             font-size: 18px;
             transition: bottom 0.5s ease-in-out;
+            max-width: 80%;
+            z-index: 1000;
         }
         .show-popup {
             bottom: 20px;
+        }
+        .close-btn {
+            position: absolute;
+            top: 5px;
+            right: 10px;
+            cursor: pointer;
+            font-size: 20px;
+            color: white;
+        }
+        .geofence-content {
+            margin-top: 10px;
+            text-align: left;
+        }
+        .geofence-content img {
+            max-width: 100%;
+            border-radius: 5px;
+            margin-top: 10px;
+            max-height: 150px;
         }
     </style>
 </head>
 <body>
     <h2>Geofenced Map</h2>
     <div id="map"></div>
-    <div id="popup">You are at Queen Elizabeth</div>
+    <div id="popup">
+        <span class="close-btn" onclick="dismissPopup()">✕</span>
+        <div id="popup-content">You are at Queen Elizabeth</div>
+    </div>
     <script>
+        // Initialize map
         let map = L.map('map').setView([17.734861, 83.338056], 14); // Default to Queen Elizabeth location
+        let currentZoom = 14; // Store current zoom level
+        let userMarker = null; // Variable to track current user marker
         
+        // Set up the map layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
         
-        let geofenceCenter = [17.734861, 83.338056]; // Queen Elizabeth location
-        let geofenceRadius = 10; // 50 meters radius
-        let geofenceCircle = L.circle(geofenceCenter, {
-            color: 'red',
-            fillColor: '#f03',
-            fillOpacity: 0.2,
-            radius: geofenceRadius
-        }).addTo(map);
+        // Store zoom level changes
+        map.on('zoomend', function() {
+            currentZoom = map.getZoom();
+        });
         
-        function checkGeofence(position) {
-            let lat = position.coords.latitude;
-            let lng = position.coords.longitude;
-            let accuracy = position.coords.accuracy;
-            let distance = map.distance([lat, lng], geofenceCenter);
+        // Define multiple geofences with their details
+        const geofences = [
+            {
+                id: 'queen_elizabeth',
+                name: 'Queen Elizabeth',
+                center: [17.734861, 83.338056],
+                radius: 10, // meters
+                color: 'red',
+                description: 'You are at Queen Elizabeth. This historic site features beautiful architecture and gardens.',
+                image: 'https://example.com/queen_elizabeth.jpg' // Replace with actual image URL
+            },
+            {
+                id: 'central_park',
+                name: 'Central Park',
+                center: [17.73418342262189, 83.33759382126067], // Example coordinates - replace with actual
+                radius: 15, // meters
+                color: 'blue',
+                description: 'On your left is Jalebi Haleem. The finest barber in whole of the west',
+                image: 'https://example.com/central_park.jpg' // Replace with actual image URL
+            },
+            {
+                id: 'toyota_park',
+                name: 'Toyota Park',
+                center: [17.73437430705774, 83.3383470880571], // Example coordinates - replace with actual
+                radius: 15, // meters
+                color: 'black',
+                description: 'Welcome to black Toyota Park. Enjoy the rental black toyota. Mark of pride and excellence of politicians for cneturies',
+                image: 'https://example.com/central_park.jpg' // Replace with actual image URL
+            },
+            {
+                id: 'galilee_clone',
+                name: 'Galilee Clone',
+                center: [17.735214839308682, 83.33769462017001], // Example coordinates - replace with actual
+                radius: 15, // meters
+                color: 'pink',
+                description: 'Welcome to Jalebi Haleem. Enjoy the finest jalebi in whole of the west',
+                image: 'https://example.com/central_park.jpg' // Replace with actual image URL
+            }
+            // Add more geofences as needed
+        ];
+        
+        // Create circles for all geofences
+        const geofenceCircles = geofences.map(geofence => {
+            return L.circle(geofence.center, {
+                color: geofence.color,
+                fillColor: geofence.color,
+                fillOpacity: 0.2,
+                radius: geofence.radius
+            }).addTo(map);
+        });
+        
+        // Function to show popup with geofence information
+        function showGeofencePopup(geofence) {
+            const popupContent = document.getElementById('popup-content');
+            let content = `<strong>${geofence.name}</strong>`;
             
-            map.setView([lat, lng], 14); // Update map to user's location
-            let marker = L.marker([lat, lng]).addTo(map).bindPopup(`You are here (Accuracy: ${accuracy.toFixed(1)}m)`).openPopup();
+            if (geofence.description) {
+                content += `<div class="geofence-content">${geofence.description}`;
+                
+                if (geofence.image) {
+                    content += `<br><img src="${geofence.image}" alt="${geofence.name}">`;
+                }
+                
+                content += '</div>';
+            }
             
-            if (distance <= geofenceRadius) {
-                document.getElementById("popup").classList.add("show-popup");
+            popupContent.innerHTML = content;
+            document.getElementById('popup').classList.add('show-popup');
+        }
+        
+        // Function to dismiss popup
+        function dismissPopup() {
+            document.getElementById('popup').classList.remove('show-popup');
+        }
+        
+        // Check if user is within any geofence
+        function checkGeofences(userPosition) {
+            const userLat = userPosition.coords.latitude;
+            const userLng = userPosition.coords.longitude;
+            const userLocation = [userLat, userLng];
+            
+            // Check each geofence
+            for (const geofence of geofences) {
+                const distance = map.distance(userLocation, geofence.center);
+                if (distance <= geofence.radius) {
+                    showGeofencePopup(geofence);
+                    return; // Show only the first matching geofence
+                }
             }
         }
         
+        // Handle location updates
+        function handleLocationUpdate(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            const accuracy = position.coords.accuracy;
+            
+            // Remove previous marker if exists
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+            
+            // Add new marker
+            userMarker = L.marker([lat, lng]).addTo(map)
+                .bindPopup(`You are here (Accuracy: ${accuracy.toFixed(1)}m)`)
+                .openPopup();
+            
+            // Update map view, maintaining current zoom level
+            map.setView([lat, lng], currentZoom);
+            
+            // Check if user is in any geofence
+            checkGeofences(position);
+        }
+        
+        // Error handler with specific messages
         function errorHandler(error) {
-            alert("Could not retrieve location. Please check your GPS settings.");
+            let errorMessage = "Location error occurred.";
+            
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMessage = "Location access was denied. Please enable location permissions in your browser settings.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMessage = "Location information is unavailable. Please check your device's GPS.";
+                    break;
+                case error.TIMEOUT:
+                    errorMessage = "Location request timed out. Please try again.";
+                    break;
+            }
+            
+            alert(errorMessage);
             console.warn("Error obtaining location", error);
         }
         
+        // Start geolocation tracking
         if (navigator.geolocation) {
-            navigator.geolocation.watchPosition(checkGeofence, errorHandler, { 
+            navigator.geolocation.watchPosition(handleLocationUpdate, errorHandler, { 
                 enableHighAccuracy: true,
                 maximumAge: 0, 
-                timeout: 30000 // Increased timeout to 30 seconds
+                timeout: 30000 // 30 seconds timeout
             });
         } else {
             alert("Geolocation is not supported by your browser.");
