@@ -13,6 +13,8 @@
             margin: 0;
             padding: 0;
             background-color: #000000;
+            position: relative;
+            overflow: hidden;
         }
         h2 {
             padding: 15px;
@@ -27,56 +29,112 @@
             border-radius: 10px;
             box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
         }
-        #popup {
+        #overlay {
             position: fixed;
-            bottom: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: #007bff;
+            bottom: -80vh;
+            left: 0;
+            right: 0;
+            height: 80vh;
+            background-color: rgba(0, 0, 0, 0.85);
             color: white;
-            padding: 15px 40px 15px 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            font-size: 18px;
             transition: bottom 0.5s ease-in-out;
-            max-width: 80%;
             z-index: 1000;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+            padding-bottom: 20px;
         }
-        .show-popup {
-            bottom: 20px;
+        #overlay.show {
+            bottom: 0;
         }
-        .close-btn {
-            position: absolute;
-            top: 5px;
-            right: 10px;
-            cursor: pointer;
-            font-size: 20px;
-            color: white;
-        }
-        .geofence-content {
-            margin-top: 10px;
+        .overlay-content {
+            padding: 20px;
             text-align: left;
+            max-width: 90%;
+            margin: 0 auto;
         }
-        .geofence-content img {
-            max-width: 100%;
-            border-radius: 5px;
-            margin-top: 10px;
-            max-height: 150px;
+        .overlay-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            position: relative;
+        }
+        .overlay-image {
+            width: 100%;
+            margin: 15px 0;
+            border-radius: 10px;
+            max-height: 250px;
+            object-fit: cover;
+        }
+        .overlay-description {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-top: 15px;
+        }
+        .close-button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            z-index: 1001;
+        }
+        .pull-handle {
+            width: 60px;
+            height: 5px;
+            background-color: rgba(255, 255, 255, 0.5);
+            border-radius: 3px;
+            margin: 10px auto;
+            cursor: pointer;
+        }
+        .active-geofence {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+                transform: scale(1);
+            }
+            50% {
+                opacity: 0.9;
+                transform: scale(1.05);
+            }
+            100% {
+                opacity: 0.6;
+                transform: scale(1);
+            }
         }
     </style>
 </head>
 <body>
     <h2>Geofenced Map</h2>
     <div id="map"></div>
-    <div id="popup">
-        <span class="close-btn" onclick="dismissPopup()">✕</span>
-        <div id="popup-content">You are at Queen Elizabeth</div>
+    <div id="overlay">
+        <div class="pull-handle" id="pull-handle"></div>
+        <button class="close-button" id="close-button">✕</button>
+        <div class="overlay-content" id="overlay-content">
+            <!-- Content will be dynamically populated -->
+        </div>
     </div>
     <script>
         // Initialize map
         let map = L.map('map').setView([17.734861, 83.338056], 14); // Default to Queen Elizabeth location
         let currentZoom = 14; // Store current zoom level
         let userMarker = null; // Variable to track current user marker
+        let currentGeofence = null; // Track current geofence
+        let geofenceCircles = []; // Store references to geofence circles
         
         // Set up the map layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -130,38 +188,90 @@
         ];
         
         // Create circles for all geofences
-        const geofenceCircles = geofences.map(geofence => {
+        geofenceCircles = geofences.map(geofence => {
             return L.circle(geofence.center, {
                 color: geofence.color,
                 fillColor: geofence.color,
                 fillOpacity: 0.2,
-                radius: geofence.radius
+                radius: geofence.radius,
+                id: geofence.id
             }).addTo(map);
         });
         
-        // Function to show popup with geofence information
-        function showGeofencePopup(geofence) {
-            const popupContent = document.getElementById('popup-content');
-            let content = `<strong>${geofence.name}</strong>`;
+        // Function to show overlay with geofence information
+        function showGeofenceOverlay(geofence) {
+            const overlayContent = document.getElementById('overlay-content');
             
-            if (geofence.description) {
-                content += `<div class="geofence-content">${geofence.description}`;
-                
-                if (geofence.image) {
-                    content += `<br><img src="${geofence.image}" alt="${geofence.name}">`;
-                }
-                
-                content += '</div>';
+            // If we're already showing this geofence, don't reset the overlay
+            if (currentGeofence && currentGeofence.id === geofence.id) {
+                return;
             }
             
-            popupContent.innerHTML = content;
-            document.getElementById('popup').classList.add('show-popup');
+            currentGeofence = geofence;
+            
+            // Update overlay content
+            let content = `
+                <div class="overlay-title">${geofence.name}</div>
+            `;
+            
+            if (geofence.image) {
+                content += `<img src="${geofence.image}" alt="${geofence.name}" class="overlay-image">`;
+            }
+            
+            if (geofence.description) {
+                content += `<div class="overlay-description">${geofence.description}</div>`;
+            }
+            
+            overlayContent.innerHTML = content;
+            document.getElementById('overlay').classList.add('show');
+            
+            // Highlight the active geofence
+            resetGeofenceHighlights();
+            highlightGeofence(geofence.id);
         }
         
-        // Function to dismiss popup
-        function dismissPopup() {
-            document.getElementById('popup').classList.remove('show-popup');
+        // Function to reset all geofence highlights
+        function resetGeofenceHighlights() {
+            geofenceCircles.forEach(circle => {
+                circle.getElement().classList.remove('active-geofence');
+            });
         }
+        
+        // Function to highlight a specific geofence
+        function highlightGeofence(geofenceId) {
+            const index = geofences.findIndex(g => g.id === geofenceId);
+            if (index !== -1) {
+                geofenceCircles[index].getElement().classList.add('active-geofence');
+            }
+        }
+        
+        // Function to dismiss overlay
+        function dismissOverlay() {
+            document.getElementById('overlay').classList.remove('show');
+            setTimeout(() => {
+                currentGeofence = null;
+                resetGeofenceHighlights();
+            }, 500); // Wait for transition to complete
+        }
+        
+        // Set up event listeners for overlay
+        document.getElementById('close-button').addEventListener('click', dismissOverlay);
+        
+        // Pull handle functionality for sliding down
+        const pullHandle = document.getElementById('pull-handle');
+        let startY = 0;
+        let currentY = 0;
+        
+        pullHandle.addEventListener('touchstart', function(e) {
+            startY = e.touches[0].clientY;
+        });
+        
+        pullHandle.addEventListener('touchmove', function(e) {
+            currentY = e.touches[0].clientY;
+            if (currentY - startY > 50) { // If pulled down more than 50px
+                dismissOverlay();
+            }
+        });
         
         // Check if user is within any geofence
         function checkGeofences(userPosition) {
@@ -173,9 +283,14 @@
             for (const geofence of geofences) {
                 const distance = map.distance(userLocation, geofence.center);
                 if (distance <= geofence.radius) {
-                    showGeofencePopup(geofence);
+                    showGeofenceOverlay(geofence);
                     return; // Show only the first matching geofence
                 }
+            }
+            
+            // If user is not in any geofence and overlay is showing, dismiss it
+            if (currentGeofence && document.getElementById('overlay').classList.contains('show')) {
+                dismissOverlay();
             }
         }
         
@@ -183,17 +298,14 @@
         function handleLocationUpdate(position) {
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
-            const accuracy = position.coords.accuracy;
             
             // Remove previous marker if exists
             if (userMarker) {
                 map.removeLayer(userMarker);
             }
             
-            // Add new marker
-            userMarker = L.marker([lat, lng]).addTo(map)
-                .bindPopup(`You are here (Accuracy: ${accuracy.toFixed(1)}m)`)
-                .openPopup();
+            // Add new marker without popup
+            userMarker = L.marker([lat, lng]).addTo(map);
             
             // Update map view, maintaining current zoom level
             map.setView([lat, lng], currentZoom);
