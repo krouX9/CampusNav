@@ -21,72 +21,65 @@
             background-color: #007bff;
             color: white;
             margin: 0;
+            position: relative;
         }
         #map {
             height: 80vh;
-            width: 95%;
-            margin: 10px auto;
-            border-radius: 10px;
+            width: 100%;
+            margin: 0 auto;
             box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
         }
-        #overlay {
+        #unified-overlay {
             position: fixed;
-            bottom: -80vh;
+            bottom: 0;
             left: 0;
             right: 0;
-            height: 80vh;
+            height: 70px; /* Start as mini-overlay height */
+            max-height: 80vh; /* Maximum height for full overlay */
             background-color: rgba(255, 255, 255, 0.75);
             color: #333;
-            transition: bottom 0.5s ease-in-out;
+            transition: height 0.3s ease-in-out, transform 0.3s ease-in-out;
             z-index: 1000;
             border-top-left-radius: 20px;
             border-top-right-radius: 20px;
             box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.15);
-            overflow-y: auto;
-            padding-bottom: 20px;
+            overflow: hidden;
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
+            transform: translateY(100%); /* Initially hidden */
         }
-        #overlay.show {
-            bottom: 0;
-        }
-        #mini-overlay {
-            position: fixed;
-            bottom: -70px;
-            left: 0;
-            right: 0;
+        #unified-overlay.mini-show {
+            transform: translateY(0);
             height: 70px;
-            background-color: rgba(255, 255, 255, 0.75);
-            color: #333;
-            transition: bottom 0.3s ease-in-out;
-            z-index: 999;
-            border-top-left-radius: 20px;
-            border-top-right-radius: 20px;
-            box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.15);
-            padding: 10px 20px;
+        }
+        #unified-overlay.full-show {
+            transform: translateY(0);
+            height: 80vh;
+            overflow-y: auto;
+        }
+        .overlay-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+            padding: 10px 20px;
+            height: 50px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.1);
         }
-        #mini-overlay.show {
-            bottom: 0;
-        }
-        .mini-title {
-            font-weight: bold;
+        .overlay-title {
             font-size: 18px;
-            margin-right: 10px;
+            font-weight: bold;
             color: #333;
+            flex-grow: 1;
+            text-align: left;
         }
-        .pull-up-indicator {
+        .overlay-indicator {
             display: flex;
             flex-direction: column;
             align-items: center;
             font-size: 12px;
             color: rgba(0, 0, 0, 0.7);
         }
-        .pull-up-indicator i {
+        .overlay-indicator i {
             font-size: 20px;
             margin-bottom: 2px;
         }
@@ -96,7 +89,7 @@
             max-width: 90%;
             margin: 0 auto;
         }
-        .overlay-title {
+        .content-title {
             font-size: 24px;
             font-weight: bold;
             margin-bottom: 15px;
@@ -117,23 +110,6 @@
             line-height: 1.6;
             margin-top: 15px;
             color: #333;
-        }
-        .close-button {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            font-size: 24px;
-            background: rgba(0, 0, 0, 0.1);
-            color: #333;
-            border: none;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            cursor: pointer;
-            z-index: 1001;
         }
         .pull-handle {
             width: 60px;
@@ -175,95 +151,137 @@
                 border-opacity: 0.4;
             }
         }
-        .compass-button {
+        .map-controls {
             position: absolute;
-            bottom: 20px;
-            right: 20px;
+            top: 15px;
+            right: 15px;
             z-index: 900;
+            display: flex;
+            gap: 10px;
+        }
+        .compass-button {
             background: white;
             border: none;
             border-radius: 5px;
             padding: 8px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
             cursor: pointer;
-        }
-        .compass-icon {
-            width: 24px;
-            height: 24px;
-            display: block;
         }
         .speech-toggle {
             position: absolute;
-            bottom: 20px;
-            left: 20px;
+            bottom: 80px;
+            right: 15px;
             z-index: 900;
             background: white;
             border: none;
-            border-radius: 5px;
-            padding: 8px;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-            cursor: pointer;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
         }
-        .speech-icon {
+        .control-icon {
             width: 24px;
             height: 24px;
             display: block;
         }
-        .speech-active {
+        .active {
             background-color: #007bff;
             color: white;
+        }
+        /* Custom user marker style */
+        .user-marker {
+            position: relative;
+        }
+        .user-marker-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background-color: #007bff;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .user-marker-direction {
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 12px solid #007bff;
+            transform: translateX(-50%) rotate(0deg);
+            transform-origin: bottom center;
+            transition: transform 0.3s ease;
+        }
+        /* Make map fill the entire container */
+        .leaflet-container {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            outline: none;
         }
     </style>
     <!-- Add Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 </head>
 <body>
-    <h2>Geofenced Map</h2>
+    <h2>Geofenced Map
+        <div class="map-controls">
+            <button class="compass-button" id="compass-button" title="Toggle Compass Mode">
+                <i class="fas fa-compass control-icon"></i>
+            </button>
+        </div>
+    </h2>
     <div id="map"></div>
     
-    <!-- Full overlay -->
-    <div id="overlay">
+    <!-- Unified overlay (replaces both previous overlays) -->
+    <div id="unified-overlay">
         <div class="pull-handle" id="pull-handle"></div>
-        <button class="close-button" id="close-button">✕</button>
+        <div class="overlay-header">
+            <div class="overlay-title" id="overlay-title">Location Name</div>
+            <div class="overlay-indicator" id="overlay-indicator">
+                <i class="fas fa-chevron-up" id="indicator-icon"></i>
+                <span id="indicator-text">Swipe up for details</span>
+            </div>
+        </div>
         <div class="overlay-content" id="overlay-content">
             <!-- Content will be dynamically populated -->
         </div>
     </div>
     
-    <!-- Mini overlay for nearby geofences -->
-    <div id="mini-overlay">
-        <div class="mini-title" id="mini-title">Location Name</div>
-        <div class="pull-up-indicator">
-            <i class="fas fa-chevron-up"></i>
-            <span>Pull up for details</span>
-        </div>
-    </div>
-    
-    <!-- Compass button -->
-    <button class="compass-button" id="compass-button">
-        <i class="fas fa-compass compass-icon"></i>
-    </button>
-    
     <!-- Text-to-speech toggle -->
-    <button class="speech-toggle" id="speech-toggle">
-        <i class="fas fa-volume-up speech-icon"></i>
+    <button class="speech-toggle" id="speech-toggle" title="Toggle Voice Narration">
+        <i class="fas fa-volume-up control-icon"></i>
     </button>
     
     <script>
         // Initialize map
-        let map = L.map('map').setView([17.734861, 83.338056], 14); // Default to Queen Elizabeth location
+        let map = L.map('map', {
+            zoomControl: false // Disable default zoom control
+        }).setView([17.734861, 83.338056], 14); // Default to Queen Elizabeth location
+        
+        // Add zoom control to top right
+        L.control.zoom({
+            position: 'topright'
+        }).addTo(map);
+        
         let currentZoom = 14; // Store current zoom level
         let userMarker = null; // Variable to track current user marker
+        let directionArrow = null; // For the direction indicator
         let currentGeofence = null; // Track current geofence
         let geofenceObjects = []; // Store references to geofence objects
-        let compassMode = false; // Track if compass mode is active
+        let compassMode = true; // Default to compass mode on
         let userHeading = 0; // Track user heading
         let speechEnabled = true; // Track if text-to-speech is enabled
         let lastSpokenGeofence = null; // Track the last geofence that was spoken
         let nearbyGeofences = []; // Track which geofences are nearby
+        let overlayState = 'hidden'; // 'hidden', 'mini', or 'full'
+        let touchStartY = 0;
+        let touchStartHeight = 0;
         
         // Set up the map layer
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -300,7 +318,7 @@
                 radius: 15, // meters
                 color: 'blue',
                 description: 'On your left is Jalebi Haleem. The finest barber in whole of the west',
-                image: 'https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D-2fQ4mS9jK8&psig=AOvVaw1inhqEmBnqeQQTEw-wVpkS&ust=1743867465256000&source=images&cd=vfe&opi=89978449&ved=0CBQQjRxqFwoTCOjH69ravowDFQAAAAAdAAAAABAE' // Replace with actual image URL
+                image: 'https://via.placeholder.com/600x300.png?text=Central+Park' // Placeholder image
             },
             {
                 id: 'toyota_park',
@@ -310,7 +328,7 @@
                 radius: 15, // meters
                 color: 'black',
                 description: 'Welcome to black Toyota Park. Enjoy the rental black toyota. Mark of pride and excellence of politicians for centuries',
-                image: 'https://example.com/central_park.jpg' // Replace with actual image URL
+                image: 'https://via.placeholder.com/600x300.png?text=Toyota+Park' // Placeholder image
             },
             {
                 id: 'galilee_clone',
@@ -320,7 +338,7 @@
                 radius: 15, // meters
                 color: 'pink',
                 description: 'Welcome to Jalebi Haleem. Enjoy the finest jalebi in whole of the west',
-                image: 'https://example.com/central_park.jpg' // Replace with actual image URL
+                image: 'https://via.placeholder.com/600x300.png?text=Galilee+Clone' // Placeholder image
             },
             {
                 id: 'rectangle_area',
@@ -332,10 +350,39 @@
                 ],
                 color: 'green',
                 description: 'This is a rectangular zone with special offers and attractions.',
-                image: 'https://example.com/rectangle_zone.jpg' // Replace with actual image URL
+                image: 'https://via.placeholder.com/600x300.png?text=Rectangle+Zone' // Placeholder image
             }
             // Add more geofences as needed
         ];
+        
+        // Create custom marker icon for user location
+        function createUserMarker(latlng, heading = 0) {
+            // Create a custom marker
+            const markerIcon = L.divIcon({
+                className: 'user-marker',
+                html: `
+                    <div class="user-marker-icon"></div>
+                    <div class="user-marker-direction" style="transform: translateX(-50%) rotate(${heading}deg)"></div>
+                `,
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+            
+            return L.marker(latlng, { icon: markerIcon, zIndexOffset: 1000 });
+        }
+        
+        // Update the user marker direction
+        function updateUserDirection(heading) {
+            if (!userMarker) return;
+            
+            const markerElement = userMarker.getElement();
+            if (markerElement) {
+                const directionElement = markerElement.querySelector('.user-marker-direction');
+                if (directionElement) {
+                    directionElement.style.transform = `translateX(-50%) rotate(${heading}deg)`;
+                }
+            }
+        }
         
         // Create visual elements for all geofences
         geofences.forEach(geofence => {
@@ -350,6 +397,12 @@
                     radius: geofence.radius,
                     id: geofence.id
                 }).addTo(map);
+                
+                // Add click event to show overlay on geofence click
+                geofenceObject.on('click', function() {
+                    showGeofenceDetails(geofence, 'full');
+                });
+                
             } else if (geofence.type === 'rectangle') {
                 // Create rectangle for rectangular geofences
                 const bounds = createRectangularBounds(geofence.corners);
@@ -362,6 +415,11 @@
                 
                 // Store the bounds for distance calculation
                 geofenceObject.bounds = bounds;
+                
+                // Add click event to show overlay on geofence click
+                geofenceObject.on('click', function() {
+                    showGeofenceDetails(geofence, 'full');
+                });
             }
             
             // Store reference to the geofence object
@@ -371,46 +429,73 @@
             });
         });
         
-        // Function to show the full overlay with geofence information
-        function showGeofenceOverlay(geofence) {
-            const overlayContent = document.getElementById('overlay-content');
+        // Shows geofence details in the unified overlay (mini or full)
+        function showGeofenceDetails(geofence, mode = 'mini') {
+            const overlay = document.getElementById('unified-overlay');
+            const overlayTitle = document.getElementById('overlay-title');
+            const indicatorIcon = document.getElementById('indicator-icon');
+            const indicatorText = document.getElementById('indicator-text');
             
-            // Update full overlay content
-            let content = `
-                <div class="overlay-title">${geofence.name}</div>
-            `;
+            // Update the title in the header
+            overlayTitle.textContent = geofence.name;
             
-            if (geofence.image) {
-                content += `<img src="${geofence.image}" alt="${geofence.name}" class="overlay-image">`;
+            // Update the overlay content if in full mode
+            if (mode === 'full') {
+                const overlayContent = document.getElementById('overlay-content');
+                
+                let content = `
+                    <div class="content-title">${geofence.name}</div>
+                `;
+                
+                if (geofence.image) {
+                    content += `<img src="${geofence.image}" alt="${geofence.name}" class="overlay-image">`;
+                }
+                
+                if (geofence.description) {
+                    content += `<div class="overlay-description">${geofence.description}</div>`;
+                }
+                
+                overlayContent.innerHTML = content;
+                
+                // Change indicator to close
+                indicatorIcon.className = 'fas fa-chevron-down';
+                indicatorText.textContent = 'Swipe down to close';
+                
+                // Show the full overlay
+                overlay.className = 'full-show';
+                overlayState = 'full';
+                
+                // Speak the geofence information when the full overlay is shown
+                speakGeofenceInfo(geofence);
+            } else {
+                // Change indicator to expand
+                indicatorIcon.className = 'fas fa-chevron-up';
+                indicatorText.textContent = 'Swipe up for details';
+                
+                // Show mini overlay
+                overlay.className = 'mini-show';
+                overlayState = 'mini';
             }
-            
-            if (geofence.description) {
-                content += `<div class="overlay-description">${geofence.description}</div>`;
-            }
-            
-            overlayContent.innerHTML = content;
-            document.getElementById('overlay').classList.add('show');
-            document.getElementById('mini-overlay').classList.remove('show');
             
             // Update current geofence
             currentGeofence = geofence;
             
             // Highlight the active geofence
             resetGeofenceHighlights();
-            highlightGeofence(geofence.id, 'active');
-            
-            // Speak the geofence information when the full overlay is shown
-            speakGeofenceInfo(geofence);
+            highlightGeofence(geofence.id, mode === 'full' ? 'active' : 'nearby');
         }
         
-        // Function to show mini overlay with just the title
-        function showMiniOverlay(geofence) {
-            // Update mini overlay content
-            document.getElementById('mini-title').textContent = geofence.name;
-            document.getElementById('mini-overlay').classList.add('show');
+        // Dismiss/hide the overlay
+        function dismissOverlay() {
+            const overlay = document.getElementById('unified-overlay');
+            overlay.className = ''; // Remove all classes
+            overlayState = 'hidden';
             
-            // Track current geofence
-            currentGeofence = geofence;
+            // Reset highlights but keep nearby geofences highlighted
+            resetGeofenceHighlights();
+            nearbyGeofences.forEach(id => {
+                highlightGeofence(id, 'nearby');
+            });
         }
         
         // Function to speak geofence information using text-to-speech
@@ -426,30 +511,40 @@
             // Use the Web Speech API with female voice settings
             const utterance = new SpeechSynthesisUtterance(speechText);
             
-            // Get available voices and select a female voice
-            const voices = window.speechSynthesis.getVoices();
-            const femaleVoices = voices.filter(voice => 
-                voice.name.includes('female') || 
-                voice.name.includes('woman') || 
-                voice.name.toLowerCase().includes('samantha') ||
-                voice.name.toLowerCase().includes('victoria') ||
-                voice.name.toLowerCase().includes('lisa') ||
-                voice.name.toLowerCase().includes('karen') ||
-                voice.name.toLowerCase().includes('alice')
-            );
-            
-            // If female voices are available, use the first one
-            if (femaleVoices.length > 0) {
-                utterance.voice = femaleVoices[0];
+            // Load voices and select a female voice
+            function setVoice() {
+                const voices = window.speechSynthesis.getVoices();
+                const femaleVoices = voices.filter(voice => 
+                    voice.name.includes('female') || 
+                    voice.name.includes('woman') || 
+                    voice.name.toLowerCase().includes('samantha') ||
+                    voice.name.toLowerCase().includes('victoria') ||
+                    voice.name.toLowerCase().includes('lisa') ||
+                    voice.name.toLowerCase().includes('karen') ||
+                    voice.name.toLowerCase().includes('alice')
+                );
+                
+                // If female voices are available, use the first one
+                if (femaleVoices.length > 0) {
+                    utterance.voice = femaleVoices[0];
+                }
+                
+                // Set a softer, more pleasant voice
+                utterance.pitch = 1.1;     // Slightly higher pitch
+                utterance.rate = 0.9;      // Slightly slower rate for clarity
+                utterance.volume = 0.8;    // Slightly lower volume for soft-spoken feel
+                
+                // Speak the text
+                speechSynthesis.speak(utterance);
             }
             
-            // Set a softer, more pleasant voice
-            utterance.pitch = 1.1;     // Slightly higher pitch (female voices are higher)
-            utterance.rate = 0.9;      // Slightly slower rate for clarity
-            utterance.volume = 0.8;    // Slightly lower volume for soft-spoken feel
-            
-            // Speak the text
-            speechSynthesis.speak(utterance);
+            // If voices are already loaded, set voice immediately
+            if (speechSynthesis.getVoices().length > 0) {
+                setVoice();
+            } else {
+                // Otherwise wait for voices to be loaded
+                speechSynthesis.onvoiceschanged = setVoice;
+            }
             
             // Update last spoken geofence
             lastSpokenGeofence = geofence.id;
@@ -478,62 +573,52 @@
             }
         }
         
-        // Function to dismiss overlay
-        function dismissOverlay() {
-            document.getElementById('overlay').classList.remove('show');
-            document.getElementById('mini-overlay').classList.remove('show');
-            
-            setTimeout(() => {
-                if (!document.getElementById('overlay').classList.contains('show')) {
-                    currentGeofence = null;
-                    resetGeofenceHighlights();
-                    
-                    // Re-highlight nearby geofences
-                    nearbyGeofences.forEach(id => {
-                        highlightGeofence(id, 'nearby');
-                    });
-                }
-            }, 500); // Wait for transition to complete
-        }
-        
-        // Setup touch events for the pull handle (improved version)
-        const overlay = document.getElementById('overlay');
+        // Setup touch events for the unified overlay
+        const unifiedOverlay = document.getElementById('unified-overlay');
         const pullHandle = document.getElementById('pull-handle');
-        let startY, currentY;
-        let isDragging = false;
         
-        // Touch events for pull handle
-        pullHandle.addEventListener('touchstart', function(e) {
-            isDragging = true;
-            startY = e.touches[0].clientY;
+        // Touch start event
+        unifiedOverlay.addEventListener('touchstart', function(e) {
+            touchStartY = e.touches[0].clientY;
+            touchStartHeight = unifiedOverlay.offsetHeight;
             e.preventDefault();
         });
         
-        document.addEventListener('touchmove', function(e) {
-            if (!isDragging) return;
+        // Touch move event
+        unifiedOverlay.addEventListener('touchmove', function(e) {
+            const touchCurrentY = e.touches[0].clientY;
+            const touchDiff = touchCurrentY - touchStartY;
             
-            currentY = e.touches[0].clientY;
-            const diff = currentY - startY;
+            // If in mini mode and swiping up, expand to full
+            if (overlayState === 'mini' && touchDiff < -50) {
+                showGeofenceDetails(currentGeofence, 'full');
+                e.preventDefault();
+                return;
+            }
             
-            if (diff > 50) { // If pulled down more than 50px
+            // If in full mode and swiping down, collapse to mini
+            if (overlayState === 'full' && touchDiff > 50) {
+                showGeofenceDetails(currentGeofence, 'mini');
+                e.preventDefault();
+                return;
+            }
+            
+            // If in mini mode and swiping down, dismiss
+            if (overlayState === 'mini' && touchDiff > 50) {
                 dismissOverlay();
-                isDragging = false;
+                e.preventDefault();
+                return;
             }
         });
         
-        document.addEventListener('touchend', function() {
-            isDragging = false;
-        });
-        
-        // Mini overlay pull up functionality
-        document.getElementById('mini-overlay').addEventListener('click', function() {
-            if (currentGeofence) {
-                showGeofenceOverlay(currentGeofence);
+        // Click event for the indicator
+        document.getElementById('overlay-indicator').addEventListener('click', function() {
+            if (overlayState === 'mini') {
+                showGeofenceDetails(currentGeofence, 'full');
+            } else if (overlayState === 'full') {
+                showGeofenceDetails(currentGeofence, 'mini');
             }
         });
-        
-        // Close button for full overlay
-        document.getElementById('close-button').addEventListener('click', dismissOverlay);
         
         // Calculate distance between user and a geofence
         function calculateDistance(userLocation, geofence) {
@@ -596,12 +681,83 @@
             return map.distance(p, closest);
         }
         
+        // Check if user is within any geofence or nearby
+        function checkGeofences(userPosition) {
+            const userLat = userPosition.coords.latitude;
+            const userLng = userPosition.coords.longitude;
+            const userLocation = [userLat, userLng];
+            let inGeofence = false;
+            nearbyGeofences = []; // Reset nearby geofences
+            
+            // Reset all highlights first
+            resetGeofenceHighlights();
+            
+            // Check each geofence for proximity and containment
+            for (const geofence of geofences) {
+                const distance = calculateDistance(userLocation, geofence);
+                
+                // Inside geofence
+                if ((geofence.type === 'circle' && distance <= geofence.radius) || 
+                    (geofence.type === 'rectangle' && distance === 0)) {
+                    
+                    // If no overlay is showing, show the overlay in full mode
+                    if (overlayState === 'hidden') {
+                        showGeofenceDetails(geofence, 'full');
+                    }
+                    
+                    inGeofence = true;
+                    highlightGeofence(geofence.id, 'active');
+                    break; // Show only the first matching geofence
+                }
+                // Nearby geofence (within 25m)
+                else if (distance <= 25) {
+                    nearbyGeofences.push(geofence.id);
+                    highlightGeofence(geofence.id, 'nearby');
+                    
+                    // If not already in a geofence and no overlay is showing, show mini overlay
+                    if (!inGeofence && overlayState === 'hidden') {
+                        showGeofenceDetails(geofence, 'mini');
+                    }
+                }
+            }
+            
+            // If user is not near any geofence and mini-overlay is showing, hide mini overlay
+            if (nearbyGeofences.length === 0 && overlayState === 'mini') {
+                dismissOverlay();
+            }
+        }
+        
+        // Handle location updates
+        function handleLocationUpdate(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            // Remove previous marker if exists
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+            
+            // Add new marker with compass direction
+            userMarker = createUserMarker([lat, lng], userHeading).addTo(map);
+            
+            // Update map view
+            if (compassMode) {
+                // In compass mode, keep the view centered on user but don't change zoom
+                map.setView([lat, lng], currentZoom);
+            } else {
+                // Normal mode, keep the current zoom level
+                map.setView([lat, lng], currentZoom);
+            }
+            
+            // Check if user is in any geofence
+            checkGeofences(position);
+        }
+        
         // Handle device orientation for compass mode
         function handleOrientation(event) {
             if (!compassMode) return;
             
             // Get device heading (alpha) and adjust for compass orientation
-            // Alpha is the compass direction the device is facing (in degrees)
             let heading = null;
             
             // Different browsers/devices provide orientation data differently
@@ -617,11 +773,111 @@
             if (heading !== null) {
                 userHeading = heading;
                 
-                // Rotate the map to align with the device heading
-                map.setBearing(userHeading);
+                // Update the direction arrow on the user marker
+                updateUserDirection(userHeading);
                 
-                // Provide visual feedback that compass mode is working
-                document.getElementById('compass-button').classList.add('active');
+                // Rotate the map - only update if the heading change is significant
+                if (Math.abs(userHeading - (map._bearing || 0)) > 5) {
+                    map.setBearing(userHeading);
+                }
+            }
+        }
+        
+        // Add setBearing method to Leaflet map if not available
+        if (!L.Map.prototype.setBearing) {
+            L.Map.prototype.setBearing = function(bearing) {
+                const map = this;
+                if (!map._bearing) map._bearing = 0;
+                
+                bearing = bearing || 0;
+                bearing = (bearing + 360) % 360;
+                
+                // Save the bearing for later use
+                map._bearing = bearing;
+                
+                // Get all map panes
+                const mapContainer = map.getContainer();
+                const panes = mapContainer.querySelectorAll('.leaflet-map-pane, .leaflet-tile-pane, .leaflet-overlay-pane, .leaflet-shadow-pane, .leaflet-marker-pane, .leaflet-tooltip-pane, .leaflet-popup-pane');
+                
+                // Rotate all panes (this ensures the whole map rotates properly)
+                panes.forEach(pane => {
+                    pane.style.transform = pane.style.transform.replace(/\s*rotate\([^)]*\)/, '') + ` rotate(${bearing}deg)`;
+                    pane.style.transformOrigin = '50% 50%';
+                });
+                
+                // Apply counter-rotation to markers and controls to keep them upright
+                const items = document.querySelectorAll('.leaflet-marker-icon:not(.user-marker-icon), .leaflet-control, .leaflet-popup');
+                items.forEach(item => {
+                    item.style.transform = item.style.transform.replace(/\s*rotate\([^)]*\)/, '') + ` rotate(${-bearing}deg)`;
+                });
+                
+                // Trigger a resize event to ensure all elements adjust
+                map.invalidateSize();
+                
+                return map;
+            };
+        }
+        
+        // Request device orientation and geolocation permissions at startup
+        function requestPermissions() {
+            // Setup orientation detection for compass mode
+            function setupOrientationDetection() {
+                try {
+                    // Request orientation permission if needed (iOS 13+)
+                    if (typeof DeviceOrientationEvent !== 'undefined' && 
+                        typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        DeviceOrientationEvent.requestPermission()
+                            .then(response => {
+                                if (response === 'granted') {
+                                    window.addEventListener('deviceorientation', handleOrientation, true);
+                                    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                                    document.getElementById('compass-button').classList.add('active');
+                                } else {
+                                    console.warn("Orientation permission denied");
+                                    compassMode = false;
+                                }
+                            })
+                            .catch(error => {
+                                console.error("Error requesting orientation permission:", error);
+                                compassMode = false;
+                            });
+                    } else {
+                        // Non-iOS devices or older iOS versions
+                        window.addEventListener('deviceorientation', handleOrientation, true);
+                        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                        document.getElementById('compass-button').classList.add('active');
+                    }
+                } catch (error) {
+                    console.error("Error setting up orientation detection:", error);
+                    compassMode = false;
+                }
+            }
+            
+            // Request location permission and setup tracking
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    function(position) {
+                        // Location permission granted, now ask for orientation
+                        setupOrientationDetection();
+                        
+                        // Start watching position
+                        navigator.geolocation.watchPosition(
+                            handleLocationUpdate, 
+                            errorHandler, 
+                            { 
+                                enableHighAccuracy: true,
+                                maximumAge: 0, 
+                                timeout: 30000 
+                            }
+                        );
+                    },
+                    function(error) {
+                        errorHandler(error);
+                    },
+                    { enableHighAccuracy: true }
+                );
+            } else {
+                alert("Geolocation is not supported by your browser.");
             }
         }
         
@@ -633,40 +889,14 @@
                 // Turn on compass mode
                 this.classList.add('active');
                 
-                // Request device orientation permission and start listening for orientation changes
-                if (typeof DeviceOrientationEvent !== 'undefined' && 
-                    typeof DeviceOrientationEvent.requestPermission === 'function') {
-                    // iOS 13+ requires permission
-                    DeviceOrientationEvent.requestPermission()
-                        .then(response => {
-                            if (response === 'granted') {
-                                window.addEventListener('deviceorientation', handleOrientation, true);
-                                // Add a success message
-                                console.log("Compass mode activated successfully");
-                            } else {
-                                alert("Device orientation permission denied. Compass mode won't work.");
-                                compassMode = false;
-                                this.classList.remove('active');
-                            }
-                        })
-                        .catch(error => {
-                            console.error("Error requesting device orientation permission:", error);
-                            alert("Failed to activate compass mode. Your device may not support this feature.");
-                            compassMode = false;
-                            this.classList.remove('active');
-                        });
-                } else {
-                    // Non-iOS devices or older iOS versions
-                    try {
-                        window.addEventListener('deviceorientation', handleOrientation, true);
-                        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
-                        console.log("Compass mode activated without permission request");
-                    } catch (error) {
-                        console.error("Error activating compass mode:", error);
-                        alert("Failed to activate compass mode. Your device may not support this feature.");
-                        compassMode = false;
-                        this.classList.remove('active');
-                    }
+                try {
+                    window.addEventListener('deviceorientation', handleOrientation, true);
+                    window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                } catch (error) {
+                    console.error("Error activating compass mode:", error);
+                    alert("Failed to activate compass mode. Your device may not support this feature.");
+                    compassMode = false;
+                    this.classList.remove('active');
                 }
             } else {
                 // Turn off compass mode
@@ -676,6 +906,9 @@
                 
                 // Reset map rotation
                 map.setBearing(0);
+                
+                // Reset user marker direction
+                updateUserDirection(0);
             }
         });
         
@@ -684,9 +917,9 @@
             speechEnabled = !speechEnabled;
             
             if (speechEnabled) {
-                this.classList.add('speech-active');
+                this.classList.add('active');
             } else {
-                this.classList.remove('speech-active');
+                this.classList.remove('active');
                 // Stop any ongoing speech
                 speechSynthesis.cancel();
             }
@@ -712,119 +945,8 @@
             console.warn("Error obtaining location", error);
         }
         
-        // Add setBearing method to Leaflet map if not available
-        if (!L.Map.prototype.setBearing) {
-            L.Map.prototype.setBearing = function(bearing) {
-                const map = this;
-                if (!map._bearing) map._bearing = 0;
-                
-                bearing = bearing || 0;
-                bearing = (bearing + 360) % 360;
-                
-                // Save the bearing for later use
-                map._bearing = bearing;
-                
-                // Apply rotation to the map container
-                const mapContainer = map.getContainer();
-                mapContainer.style.transform = `rotate(${bearing}deg)`;
-                
-                // Apply counter-rotation to markers and controls to keep them upright
-                const markers = document.querySelectorAll('.leaflet-marker-icon, .leaflet-control');
-                markers.forEach(marker => {
-                    marker.style.transform = `rotate(${-bearing}deg)`;
-                });
-                
-                // Trigger a resize event to ensure all elements adjust
-                map.invalidateSize();
-                
-                return map;
-            };
-        }
-        
-        // Check if user is within any geofence or nearby
-        function checkGeofences(userPosition) {
-            const userLat = userPosition.coords.latitude;
-            const userLng = userPosition.coords.longitude;
-            const userLocation = [userLat, userLng];
-            let inGeofence = false;
-            nearbyGeofences = []; // Reset nearby geofences
-            
-            // Reset all highlights first
-            resetGeofenceHighlights();
-            
-            // Check each geofence for proximity and containment
-            for (const geofence of geofences) {
-                const distance = calculateDistance(userLocation, geofence);
-                
-                // Inside geofence
-                if ((geofence.type === 'circle' && distance <= geofence.radius) || 
-                    (geofence.type === 'rectangle' && distance === 0)) {
-                    
-                    // If the overlay is not already showing, show the overlay
-                    if (!document.getElementById('overlay').classList.contains('show')) {
-                        showGeofenceOverlay(geofence);
-                    }
-                    
-                    inGeofence = true;
-                    highlightGeofence(geofence.id, 'active');
-                    break; // Show only the first matching geofence
-                }
-                // Nearby geofence (within 25m)
-                else if (distance <= 25) {
-                    nearbyGeofences.push(geofence.id);
-                    highlightGeofence(geofence.id, 'nearby');
-                    
-                    // If not already in a geofence and no overlay is showing, show mini overlay
-                    if (!inGeofence && 
-                        !document.getElementById('overlay').classList.contains('show') && 
-                        !document.getElementById('mini-overlay').classList.contains('show')) {
-                        showMiniOverlay(geofence);
-                    }
-                }
-            }
-            
-            // If user is not near any geofence and mini-overlay is showing, hide mini overlay
-            if (nearbyGeofences.length === 0 && document.getElementById('mini-overlay').classList.contains('show')) {
-                document.getElementById('mini-overlay').classList.remove('show');
-            }
-        }
-        
-        // Handle location updates
-        function handleLocationUpdate(position) {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            
-            // Remove previous marker if exists
-            if (userMarker) {
-                map.removeLayer(userMarker);
-            }
-            
-            // Add new marker without popup
-            userMarker = L.marker([lat, lng]).addTo(map);
-            
-            // Update map view
-            if (compassMode) {
-                // In compass mode, keep the view centered on user but don't change zoom
-                map.setView([lat, lng], currentZoom);
-            } else {
-                // Normal mode, keep the current zoom level
-                map.setView([lat, lng], currentZoom);
-            }
-            
-            // Check if user is in any geofence
-            checkGeofences(position);
-        }
-        
-        // Start geolocation tracking
-        if (navigator.geolocation) {
-            navigator.geolocation.watchPosition(handleLocationUpdate, errorHandler, { 
-                enableHighAccuracy: true,
-                maximumAge: 0, 
-                timeout: 30000 // 30 seconds timeout
-            });
-        } else {
-            alert("Geolocation is not supported by your browser.");
-        }
+        // Initialize the app
+        requestPermissions();
     </script>
 </body>
 </html>
