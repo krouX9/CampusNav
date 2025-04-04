@@ -596,100 +596,33 @@
             return map.distance(p, closest);
         }
         
-        // Check if user is within any geofence or nearby
-        function checkGeofences(userPosition) {
-            const userLat = userPosition.coords.latitude;
-            const userLng = userPosition.coords.longitude;
-            const userLocation = [userLat, userLng];
-            let inGeofence = false;
-            nearbyGeofences = []; // Reset nearby geofences
-            
-            // Reset all highlights first
-            resetGeofenceHighlights();
-            
-            // Check each geofence for proximity and containment
-            for (const geofence of geofences) {
-                const distance = calculateDistance(userLocation, geofence);
-                
-                // Inside geofence
-                if ((geofence.type === 'circle' && distance <= geofence.radius) || 
-                    (geofence.type === 'rectangle' && distance === 0)) {
-                    showGeofenceOverlay(geofence);
-                    inGeofence = true;
-                    break; // Show only the first matching geofence
-                }
-                // Nearby geofence (within 25m)
-                else if (distance <= 25) {
-                    nearbyGeofences.push(geofence.id);
-                    highlightGeofence(geofence.id, 'nearby');
-                    
-                    // If not already in a geofence, show mini overlay
-                    if (!inGeofence && !document.getElementById('overlay').classList.contains('show')) {
-                        showMiniOverlay(geofence);
-                    }
-                }
-            }
-            
-            // If user is not in any geofence and overlay is showing, dismiss it
-            if (!inGeofence && document.getElementById('overlay').classList.contains('show')) {
-                dismissOverlay();
-            }
-            
-            // If user is not near any geofence, hide mini overlay
-            if (nearbyGeofences.length === 0 && document.getElementById('mini-overlay').classList.contains('show')) {
-                document.getElementById('mini-overlay').classList.remove('show');
-            }
-        }
-        
-        // Handle location updates
-        function handleLocationUpdate(position) {
-            const lat = position.coords.latitude;
-            const lng = position.coords.longitude;
-            
-            // Remove previous marker if exists
-            if (userMarker) {
-                map.removeLayer(userMarker);
-            }
-            
-            // Add new marker without popup
-            userMarker = L.marker([lat, lng]).addTo(map);
-            
-            // Update map view
-            if (compassMode) {
-                // In compass mode, keep the view centered on user but don't change zoom
-                map.setView([lat, lng], currentZoom);
-            } else {
-                // Normal mode, keep the current zoom level
-                map.setView([lat, lng], currentZoom);
-            }
-            
-            // Check if user is in any geofence
-            checkGeofences(position);
-        }
-        
         // Handle device orientation for compass mode
         function handleOrientation(event) {
             if (!compassMode) return;
             
             // Get device heading (alpha) and adjust for compass orientation
             // Alpha is the compass direction the device is facing (in degrees)
-            let heading = event.alpha;
+            let heading = null;
             
-            // Some browsers use different reference points for alpha
-            // We need to normalize for this
-            if (window.chrome) {
-                // Chrome uses 0° as North
-                userHeading = heading;
-            } else {
-                // Firefox and others might use 90° as East
-                userHeading = (heading + 90) % 360;
+            // Different browsers/devices provide orientation data differently
+            if (event.webkitCompassHeading) {
+                // iOS webkit browsers provide compass heading directly
+                heading = event.webkitCompassHeading;
+            } else if (event.alpha !== null) {
+                // Standard orientation API
+                heading = 360 - event.alpha; // Convert to clockwise rotation
             }
             
-            // Rotate the map to align with the device heading
-            map.setBearing(userHeading);
-            
-            // Store the heading for later use
-            userHeading = heading;
+            // If we have a valid heading, use it
+            if (heading !== null) {
+                userHeading = heading;
+                
+                // Rotate the map to align with the device heading
+                map.setBearing(userHeading);
+                
+                // Provide visual feedback that compass mode is working
+                document.getElementById('compass-button').classList.add('active');
+            }
         }
         
         // Toggle compass mode
@@ -707,22 +640,39 @@
                     DeviceOrientationEvent.requestPermission()
                         .then(response => {
                             if (response === 'granted') {
-                                window.addEventListener('deviceorientation', handleOrientation);
+                                window.addEventListener('deviceorientation', handleOrientation, true);
+                                // Add a success message
+                                console.log("Compass mode activated successfully");
                             } else {
                                 alert("Device orientation permission denied. Compass mode won't work.");
                                 compassMode = false;
                                 this.classList.remove('active');
                             }
                         })
-                        .catch(console.error);
+                        .catch(error => {
+                            console.error("Error requesting device orientation permission:", error);
+                            alert("Failed to activate compass mode. Your device may not support this feature.");
+                            compassMode = false;
+                            this.classList.remove('active');
+                        });
                 } else {
                     // Non-iOS devices or older iOS versions
-                    window.addEventListener('deviceorientation', handleOrientation);
+                    try {
+                        window.addEventListener('deviceorientation', handleOrientation, true);
+                        window.addEventListener('deviceorientationabsolute', handleOrientation, true);
+                        console.log("Compass mode activated without permission request");
+                    } catch (error) {
+                        console.error("Error activating compass mode:", error);
+                        alert("Failed to activate compass mode. Your device may not support this feature.");
+                        compassMode = false;
+                        this.classList.remove('active');
+                    }
                 }
             } else {
                 // Turn off compass mode
                 this.classList.remove('active');
-                window.removeEventListener('deviceorientation', handleOrientation);
+                window.removeEventListener('deviceorientation', handleOrientation, true);
+                window.removeEventListener('deviceorientationabsolute', handleOrientation, true);
                 
                 // Reset map rotation
                 map.setBearing(0);
@@ -775,13 +725,94 @@
                 map._bearing = bearing;
                 
                 // Apply rotation to the map container
-                map.getContainer().style.transform = `rotate(${bearing}deg)`;
+                const mapContainer = map.getContainer();
+                mapContainer.style.transform = `rotate(${bearing}deg)`;
+                
+                // Apply counter-rotation to markers and controls to keep them upright
+                const markers = document.querySelectorAll('.leaflet-marker-icon, .leaflet-control');
+                markers.forEach(marker => {
+                    marker.style.transform = `rotate(${-bearing}deg)`;
+                });
                 
                 // Trigger a resize event to ensure all elements adjust
                 map.invalidateSize();
                 
                 return map;
             };
+        }
+        
+        // Check if user is within any geofence or nearby
+        function checkGeofences(userPosition) {
+            const userLat = userPosition.coords.latitude;
+            const userLng = userPosition.coords.longitude;
+            const userLocation = [userLat, userLng];
+            let inGeofence = false;
+            nearbyGeofences = []; // Reset nearby geofences
+            
+            // Reset all highlights first
+            resetGeofenceHighlights();
+            
+            // Check each geofence for proximity and containment
+            for (const geofence of geofences) {
+                const distance = calculateDistance(userLocation, geofence);
+                
+                // Inside geofence
+                if ((geofence.type === 'circle' && distance <= geofence.radius) || 
+                    (geofence.type === 'rectangle' && distance === 0)) {
+                    
+                    // If the overlay is not already showing, show the overlay
+                    if (!document.getElementById('overlay').classList.contains('show')) {
+                        showGeofenceOverlay(geofence);
+                    }
+                    
+                    inGeofence = true;
+                    highlightGeofence(geofence.id, 'active');
+                    break; // Show only the first matching geofence
+                }
+                // Nearby geofence (within 25m)
+                else if (distance <= 25) {
+                    nearbyGeofences.push(geofence.id);
+                    highlightGeofence(geofence.id, 'nearby');
+                    
+                    // If not already in a geofence and no overlay is showing, show mini overlay
+                    if (!inGeofence && 
+                        !document.getElementById('overlay').classList.contains('show') && 
+                        !document.getElementById('mini-overlay').classList.contains('show')) {
+                        showMiniOverlay(geofence);
+                    }
+                }
+            }
+            
+            // If user is not near any geofence and mini-overlay is showing, hide mini overlay
+            if (nearbyGeofences.length === 0 && document.getElementById('mini-overlay').classList.contains('show')) {
+                document.getElementById('mini-overlay').classList.remove('show');
+            }
+        }
+        
+        // Handle location updates
+        function handleLocationUpdate(position) {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            
+            // Remove previous marker if exists
+            if (userMarker) {
+                map.removeLayer(userMarker);
+            }
+            
+            // Add new marker without popup
+            userMarker = L.marker([lat, lng]).addTo(map);
+            
+            // Update map view
+            if (compassMode) {
+                // In compass mode, keep the view centered on user but don't change zoom
+                map.setView([lat, lng], currentZoom);
+            } else {
+                // Normal mode, keep the current zoom level
+                map.setView([lat, lng], currentZoom);
+            }
+            
+            // Check if user is in any geofence
+            checkGeofences(position);
         }
         
         // Start geolocation tracking
